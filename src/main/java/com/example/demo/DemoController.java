@@ -8,7 +8,7 @@ public class DemoController {
 
      @GetMapping("/hello")
      public String helloworld() {
-         return "Hello";
+         return "Workflow runs on push";
      }
  }
 
