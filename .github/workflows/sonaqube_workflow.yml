@@ -20,5 +20,5 @@ jobs:
       - name: SonarQube Scan
         run: |
           mvn sonar:sonar \
-             -Dsonar.host.url=${{ http://a417c2f372c6b457788f0a244010ecca-264646901.ap-southeast-1.elb.amazonaws.com:9000 }} \
-             -Dsonar.login=${{ 7a49bd0dbb8959e270f0b64da91898b61a34ffe7 }}
+             -Dsonar.host.url=${{http://a417c2f372c6b457788f0a244010ecca-264646901.ap-southeast-1.elb.amazonaws.com:9000}} \
+             -Dsonar.login=${{7a49bd0dbb8959e270f0b64da91898b61a34ffe7}}
