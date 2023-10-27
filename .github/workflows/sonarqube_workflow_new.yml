@@ -28,5 +28,5 @@ jobs:
     - name: SonarQube Scan
       run: |
           mvn sonar:sonar \
-             -Dsonar.host.url=${{SONAR_HOST_URL}} \
-             -Dsonar.login=${{SONAR_TOKEN}}
+             -Dsonar.host.url=${{SONARQUBE_SERVER_URL}} \
+             -Dsonar.login=${{PROJ_SONAR_TOKEN}}
