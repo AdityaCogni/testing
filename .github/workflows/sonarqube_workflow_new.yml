@@ -1,32 +1,25 @@
+---
 name: Sonarqube
-
 on:
   push:
-   branches:
-      - '*'
-
+    branches:
+      - "*"
 jobs:
-
-
   build:
     env:
-        PROJ_SONAR_TOKEN: '7a49bd0dbb8959e270f0b64da91898b61xxxxddd'
-        SONARQUBE_SERVER_URL: 'http://ccccccc-264646901.ap-southeast-1.elb.amazonaws.com:9000'
-        
-        
+      PROJ_SONAR_TOKEN: fsdgsdgddf4444
+      SONARQUBE_SERVER_URL: http://cccccuyfgggggggggg:4849
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    
-    - name: Set up JDK
-      uses: actions/setup-java@v1
-      with:
-        distribution: adopt
-        java-version: '11'
-    
-    - name: SonarQube Scan
-      run: |
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          distribution: adopt
+          java-version: "11"
+      - name: SonarQube Scan
+        run: |
           mvn sonar:sonar \
              -Dsonar.host.url=${{SONARQUBE_SERVER_URL}} \
              -Dsonar.login=${{PROJ_SONAR_TOKEN}}
