@@ -7,10 +7,11 @@ jobs:
   sonarqube:
     runs-on: ubuntu-latest
 
+  
   build:  
     env:
-      SONAR_HOST_URL: 'http://a417c2f372c6b457788f0a244010ecca-264646901.ap-southeast-1.elb.amazonaws.com:9000'
-      SONAR_TOKEN: '7a49bd0dbb8959e270f0b64da91898b61a34ffe7' 
+        SONAR_HOST_URL: 'http://a417c2f372c6b457788f0a244010ecca-264646901.ap-southeast-1.elb.amazonaws.com:9000'
+        SONAR_TOKEN: '7a49bd0dbb8959e270f0b64da91898b61a34ffe7' 
 
     steps:
       - name: Checkout code
