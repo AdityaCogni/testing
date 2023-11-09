@@ -1,25 +1,156 @@
----
-name: Sonarqube
+name: TicketBooking-Pipeline
+
 on:
-  push:
+  push: # event
     branches:
-      - "*"
-jobs:
+      - github-workflow
+    tags:
+      - 'v*.*.*'
+#on:
+#  workflow_dispatch:
+#    inputs:
+#      name:
+#        description: 'Person name to greet'
+ 
+
+jobs: # workflow job
+
+
   build:
     env:
-      PROJ_SONAR_TOKEN: '7a49bd0dbb8959e270f0b64da91898b61a34ffe7'
-      SONARQUBE_SERVER_URL: 'http://a417c2f372c6b457788f0a244010ecca-264646901.ap-southeast-1.elb.amazonaws.com:9000'
-    runs-on: ubuntu-latest
+        JAVA_VERSION: '17'
+        DISTRIBUTION: 'temurin'
+        DOCKER_PUSH: false
+        
+        CHECKMARX_BASE_URL: abc
+        CHECKMARX_API_KEY: abc
+        CHECKMARX_TENANT_ID: abc
+        CHECKMARX_CLIENT_ID: abc
+        CHECKMARX_CLIENT_SECRET: abc
+        RUN_CHECKMARX_SCAN: false
+
+        PROJ_SONAR_TOKEN: ${{secrets.PROJ_SONAR_TOKEN}}
+        SONARQUBE_SERVER_URL:  ${{secrets.SONARQUBE_SERVER_URL}}
+        RUN_SONAR_SCAN: false
+        TAG: 'ticket-booking-1.0.1'
+        
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Set up JDK
-        uses: actions/setup-java@v2
-        with:
-          DISTRIBUTION: 'temurin'
-          java-version: "11"
-      - name: SonarQube Scan
-        run: |
-          mvn sonar:sonar \
-             -Dsonar.host.url=$SONARQUBE_SERVER_URL \
-             -Dsonar.login=$PROJ_SONAR_TOKEN
+    - name: Check user permission
+      id: check
+      uses: scherermichael-oss/action-has-permission@master
+      with:
+        required-permission: write
+      env:
+        GITHUB_TOKEN: $
+ 
+    - uses: actions/checkout@v3
+    #- uses: haya14busa/action-update-semver@v1
+    #  with:
+    #      major_version_tag_only: true  # (optional, default is "false")
+    - name: Set up JDK ${{env.JAVA_VERSION}}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{env.JAVA_VERSION}}
+        distribution: ${{env.DISTRIBUTION}}
+        cache: maven
+
+    - name: 'Get tag'
+      id: tag
+      uses: 'WyriHaximus/github-action-get-previous-tag@8a0e045f02c0a3a04e1452df58b90fc7e555e950'
+    
+    - name: Set correct environment
+      run: |
+        TAG=${{ steps.tag.outputs.tag }}
+        echo "TAG=$TAG"
+
+
+    - name: Build TicketBooking with Maven
+      run: mvn clean package --batch-mode  -DskipTests 
+
+    - name: Run unit test
+      run: mvn --batch-mode -Dmaven.test.failure.ignore=true test
+    
+    #Triggering SonarQube analysis as results of it are required by Quality Gate check.
+    - name: SonarQube Scan
+      if: ${{ env.RUN_SONAR_SCAN == 'true' }}
+      uses: sonarsource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.PROJ_SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONARQUBE_SERVER_URL }}
+    
+    # Check the Quality Gate status.
+    - name: SonarQube Quality Gate check
+      if: ${{ env.RUN_SONAR_SCAN == 'true' }}
+      id: sonarqube-quality-gate-check
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      # Force to fail step after specific time.
+      timeout-minutes: 5
+      env:
+       SONAR_TOKEN: ${{ secrets.PROJ_SONAR_TOKEN }}
+       SONAR_HOST_URL: ${{ secrets.SONARQUBE_SERVER_URL }} #OPTIONAL
+     
+    # Optionally you can use the output from the Quality Gate in another step.
+    # The possible outputs of the `quality-gate-status` variable are `PASSED`, `WARN` or `FAILED`.
+    - name: "show SonarQube Quality Gate Status value"
+      if: ${{ env.RUN_SONAR_SCAN == 'true' }}
+      run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Retrieve metadata
+      id: metadata
+      uses: docker/metadata-action@e5622373a38e60fb6d795a4421e56882f2d7a681
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      with:
+        images: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}
+        tags: |
+          type=semver,pattern={{major}}.{{minor}}.{{patch}},value=${{ env.TAG }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }}
+          type=semver,pattern={{major}},value=${{ env.TAG }}
+
+    - name: test-image
+      run: |
+        echo ${{ steps.metadata.outputs.tags }}
+    #- name: Build and push
+    #  id: docker
+    #  uses: docker/build-push-action@v2
+    #  with:
+    #    push: true
+    #    tags: ${{ steps.metadata.outputs.tags }}
+
+    #- name: Build, tag, and push image to Amazon ECR
+    #  if: ${{ env.DOCKER_PUSH == 'true' }}
+    #  env:
+    #    ECR_REGISTRY: 916849114231.dkr.ecr.us-east-1.amazonaws.com
+    #    ECR_REPOSITORY: github-workflow/ticket-booking
+    #  run: |
+    #    jarvar='ticket-booking-0.0.1-SNAPSHOT'
+    #    timestamp=$(date +%Y%m%d_%H%M_%S)
+    #    docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:j$arvar-$timestamp .
+    #    docker push $ECR_REGISTRY/$ECR_REPOSITORY:j$arvar-$timestamp 
+
+
+      
+ 
+      
+      
+
+            
+ 
+
+     
